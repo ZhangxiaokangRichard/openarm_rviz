@@ -461,179 +461,148 @@ $$
 
 ## 4. 加油枪抓取功能包接口设计
 
+> **实现状态**：已在 `src/fuel_gun_grasp/` 完成 C++ 完整实现，可直接编译运行。
+> 详细使用说明见 `src/fuel_gun_grasp/README.md`。
+
 ### 4.1 任务分解
 
 ```
-阶段 0：感知   →  检测加油枪位姿
-阶段 1：接近   →  末端移动到抓取预备点（grasp_prepose）
-阶段 2：精对正 →  精确对准抓取姿态
-阶段 3：夹取   →  夹爪闭合 + 确认接触
-阶段 4：提升   →  携枪退出
-阶段 5：迁移   →  搬运至安装点上方
-阶段 6：插入   →  以指定姿态逼近目标孔位（需末端朝向约束）
-阶段 7：到位   →  夹爪松开 + 验证安装
+阶段 0：初始化   →  等待控制器服务上线
+阶段 1：回零位   →  关节空间运动到安全初始姿态
+阶段 2：预备位   →  任务空间（全位姿）移动到加油枪正上方
+阶段 3：打开夹爪 →  夹爪张开，为抓取做准备
+阶段 4：接近     →  仅位置运动：竖直下降到加油枪抓取位
+阶段 5：夹取     →  夹爪闭合抓住加油枪
+阶段 6：抬升     →  仅位置运动：携枪竖直抬升
+阶段 7：转移     →  任务空间（全位姿）移动到安装位上方
+阶段 8：放置     →  仅位置运动：竖直下降到安装终点
+阶段 9：释放     →  夹爪打开，完成安装
 ```
 
-### 4.2 需要使用的话题与服务
-
-#### 订阅（感知当前状态）
-
-| 话题 | 类型 | 用途 |
-|------|------|------|
-| `/joint_states` | `sensor_msgs/JointState` | 监听当前关节角（100Hz） |
-| `/open_manipulator/kinematics_pose` (gripper) | `open_manipulator_msgs/KinematicsPose` | 实时末端位姿 |
-| `/open_manipulator/states` | `open_manipulator_msgs/OpenManipulatorState` | 判断是否处于运动中 |
-| `/camera/color/image_raw` 或 `/camera/depth/...` | `sensor_msgs/Image` | 感知相机（外部）|
-| `/tf` | TF2 tree | 坐标系变换（相机→基坐标系变换） |
-
-**等待运动完成的标准做法：**
-
-```python
-def wait_for_stop():
-    while True:
-        state = rospy.wait_for_message("/open_manipulator/states",
-                                       OpenManipulatorState)
-        if state.open_manipulator_moving_state == "STOPPED":
-            break
-        rospy.sleep(0.05)
-```
+### 4.2 使用的 ROS 服务
 
 #### 调用（驱动运动）
 
-| 服务 | 类型 | 用途 |
-|------|------|------|
-| `/goal_joint_space_path` | `SetJointPosition` | 移动到安全初始姿态（避障） |
-| `/goal_task_space_path` | `SetKinematicsPose` | 末端移动到指定位姿（6DOF） |
-| `/goal_task_space_path_position_only` | `SetKinematicsPose` | 仅平移，不改变当前姿态 |
-| `/goal_task_space_path_from_present_position_only` | `SetKinematicsPose` | 相对当前位置微调 |
-| `/goal_task_space_path_from_present_orientation_only` | `SetKinematicsPose` | 在当前位置微调姿态 |
-| `/goal_tool_control` | `SetJointPosition` | 夹爪开合 |
-| `/get_kinematics_pose` | `GetKinematicsPose` | 主动查询末端位姿 |
-| `/get_joint_position` | `GetJointPosition` | 主动查询关节角 |
+`fuel_gun_grasp` 节点调用以下 4 个控制器服务（均由 `open_manipulator_controller` 提供）：
 
-#### 服务调用示意（Python）
+| 服务名 | 类型 | 用途 |
+|--------|------|------|
+| `/goal_joint_space_path` | `SetJointPosition` | 回零位关节空间运动 |
+| `/goal_task_space_path` | `SetKinematicsPose` | 全位姿（位置+姿态）任务空间运动，用于预备位/转移 |
+| `/goal_task_space_path_position_only` | `SetKinematicsPose` | 仅位置运动（保持当前末端姿态），用于竖直接近/抬升/放置 |
+| `/goal_tool_control` | `SetJointPosition` | 夹爪开合控制 |
 
-```python
-#!/usr/bin/env python3
-import rospy
-from open_manipulator_msgs.srv import *
-from open_manipulator_msgs.msg import OpenManipulatorState
-from geometry_msgs.msg import Pose
+> **注**：控制器不提供主动查询服务（无 `/get_kinematics_pose` 服务端）。
+> 若需实时读取末端位姿，订阅话题 `gripper/kinematics_pose`（`KinematicsPose`）。
 
-def call_task_space(x, y, z, qw, qx, qy, qz, path_time):
-    cli = rospy.ServiceProxy("/goal_task_space_path", SetKinematicsPose)
-    req = SetKinematicsPoseRequest()
-    req.end_effector_name = "gripper"
-    req.kinematics_pose.pose.position.x = x
-    req.kinematics_pose.pose.position.y = y
-    req.kinematics_pose.pose.position.z = z
-    req.kinematics_pose.pose.orientation.w = qw
-    req.kinematics_pose.pose.orientation.x = qx
-    req.kinematics_pose.pose.orientation.y = qy
-    req.kinematics_pose.pose.orientation.z = qz
-    req.path_time = path_time
-    return cli(req).is_planned
+#### 服务调用示意（C++）
 
-def gripper_open():
-    cli = rospy.ServiceProxy("/goal_tool_control", SetJointPosition)
-    req = SetJointPositionRequest()
-    req.joint_position.joint_name = ["gripper"]
-    req.joint_position.position   = [0.010]   # 开爪
-    req.path_time = 1.0
-    cli(req)
+```cpp
+// 任务空间全位姿运动
+bool moveTaskSpace(const geometry_msgs::Pose& target, double path_time)
+{
+    open_manipulator_msgs::SetKinematicsPose srv;
+    srv.request.planning_group    = "planning_group";
+    srv.request.end_effector_name = "gripper";
+    srv.request.kinematics_pose.pose = target;
+    srv.request.path_time         = path_time;
+    return client_task_space_.call(srv) && srv.response.is_planned;
+}
 
-def gripper_close():
-    cli = rospy.ServiceProxy("/goal_tool_control", SetJointPosition)
-    req = SetJointPositionRequest()
-    req.joint_position.joint_name = ["gripper"]
-    req.joint_position.position   = [-0.005]  # 闭爪（根据枪柄直径调整）
-    req.path_time = 1.0
-    cli(req)
+// 夹爪控制；value > 0 张开，value < 0 收紧
+bool controlGripper(double value, double path_time)
+{
+    open_manipulator_msgs::SetJointPosition srv;
+    srv.request.planning_group = "planning_group";
+    srv.request.joint_position.joint_name = {"gripper"};
+    srv.request.joint_position.position   = {value};
+    srv.request.path_time = path_time;
+    return client_tool_control_.call(srv) && srv.response.is_planned;
+}
 ```
 
-### 4.3 状态机设计
+### 4.3 状态机（C++ 实现）
 
 ```
-                  ┌──────────────────────────────────────────┐
-                  │           FuelGunGraspStateMachine        │
-                  └──────────────────────────────────────────┘
-     初始化
-      │
-      ▼
-  IDLE ──── 触发任务 ────►  DETECT_GUN
-                              │
-                          感知枪位姿（TF/视觉）
-                              │
-                              ▼
-                         APPROACH_PREPOSE
-                              │
-                          call task_space(prepose, t=3s)
-                          wait_for_stop()
-                              │
-                              ▼
-                         ALIGN_GRASP
-                              │
-                          call task_space(grasp_pose, t=1s)
-                          wait_for_stop()
-                              │
-                              ▼
-                         CLOSE_GRIPPER
-                              │
-                          gripper_close()
-                          sleep(1.0s)
-                              │
-                              ▼
-                         LIFT_GUN
-                              │
-                          call task_space_from_present(Δz=+0.05m, t=1s)
-                          wait_for_stop()
-                              │
-                              ▼
-                         TRANSFER_TO_TARGET
-                              │
-                          call task_space(above_target, t=4s)
-                          wait_for_stop()
-                              │
-                              ▼
-                         INSERT_GUN
-                              │
-                          call task_space(install_pose, t=2s)  ← 指定安装姿态
-                          wait_for_stop()
-                              │
-                              ▼
-                         RELEASE_GRIPPER
-                              │
-                          gripper_open()
-                          sleep(0.5s)
-                              │
-                              ▼
-                         RETURN_HOME
-                              │
-                          call joint_space([0,0,0,0], t=3s)
-                              │
-                              ▼
-                           DONE
+[STATE_INIT]
+  │  等待 4 个服务上线（最多 10s）
+  ▼
+[STATE_HOME]
+  │  moveJointSpace(home_joint_positions, path_time_home)
+  │  sleep(path_time_home + 0.5s)
+  ▼
+[STATE_PRE_GRASP]
+  │  moveTaskSpace(gun_pose + Δz=pre_grasp_offset, path_time_transit)
+  │  sleep(path_time_transit + 0.5s)
+  ▼
+[STATE_OPEN_GRIPPER]
+  │  controlGripper(gripper_open_value, path_time_gripper)
+  │  sleep(path_time_gripper + wait_after_open)
+  ▼
+[STATE_APPROACH]
+  │  moveTaskSpacePositionOnly(gun_pose, path_time_approach)
+  │  sleep(path_time_approach + 0.3s)
+  ▼
+[STATE_CLOSE_GRIPPER]
+  │  controlGripper(gripper_grasp_value, path_time_gripper)
+  │  sleep(path_time_gripper + wait_after_grasp)
+  ▼
+[STATE_LIFT]
+  │  moveTaskSpacePositionOnly(gun_pose + Δz=lift_offset, path_time_lift)
+  │  sleep(path_time_lift + wait_after_lift)
+  ▼
+[STATE_MOVE_TARGET]
+  │  moveTaskSpace(install_pose + Δz=pre_place_offset, path_time_transit)
+  │  sleep(path_time_transit + 0.5s)
+  ▼
+[STATE_PLACE]
+  │  moveTaskSpacePositionOnly(install_pose, path_time_approach)
+  │  sleep(path_time_approach + wait_after_place)
+  ▼
+[STATE_OPEN_RELEASE]
+  │  controlGripper(gripper_open_value, path_time_gripper)
+  │  sleep(path_time_gripper + wait_after_open)
+  ▼
+[STATE_DONE]
+  任务完成
 ```
 
-### 4.4 功能包结构
+> **说明**：节点使用 `ros::Duration::sleep()` 等待每个轨迹执行完毕，
+> 等待时间 = `path_time`（MinimumJerk 规划时长）+ 余量。
+> 这比订阅 `/states` 的方式更简单，适合位置和时间已知的离线规划场景。
+
+### 4.4 功能包结构（实际实现）
 
 ```
-my_fuel_gun_grasp/
+src/fuel_gun_grasp/
 ├── CMakeLists.txt
-├── package.xml                   # 依赖: roscpp, rospy, open_manipulator_msgs,
-│                                 #        geometry_msgs, tf2_ros, sensor_msgs
-├── launch/
-│   └── fuel_gun_grasp.launch     # 启动仿真+本节点
+├── package.xml                         # 依赖: roscpp, geometry_msgs, open_manipulator_msgs
+├── README.md                           # 中文使用说明
 ├── config/
-│   ├── grasp_poses.yaml          # 各阶段位姿（prepose, grasp_pose, install_pose…）
-│   └── robot_params.yaml         # path_time, 夹爪力度阈值等
-├── scripts/
-│   ├── fuel_gun_grasp_node.py    # 主状态机节点
-│   ├── arm_client.py             # 封装所有 service call
-│   └── workspace_check.py        # IK 可达性预检
+│   └── params.yaml                     # 所有参数（位姿/夹爪/时间，含中文注释）
+├── include/
+│   └── fuel_gun_grasp/
+│       └── grasp_controller.h          # 状态机类声明
+├── launch/
+│   ├── fuel_gun_grasp.launch           # 仅启动抓取节点（控制器须已运行）
+│   └── sim_with_grasp.launch           # 一键启动 RViz 仿真 + 抓取节点
 └── src/
-    └── grasp_planner.cpp         # 可选：C++ 高性能规划
+    └── fuel_gun_grasp_node.cpp         # 主节点：GraspController 实现 + main()
 ```
+
+### 4.5 关键参数（config/params.yaml）
+
+| 参数 | 含义 |
+|------|------|
+| `gun_pose` | 加油枪起点位姿（position + orientation 四元数） |
+| `install_pose` | 安装终点位姿 |
+| `pre_grasp_height_offset` | 预备位相对抓取点的 Z 偏移 (m) |
+| `lift_height_offset` | 抓取后抬升高度 (m) |
+| `gripper_open_value` | 夹爪打开位移 (m)，`> 0` |
+| `gripper_grasp_value` | 夹爪抓取位移 (m)，`< 0` |
+| `path_time_*` | 各阶段 MinimumJerk 轨迹时长 (s) |
+| `wait_after_*` | 各阶段额外等待时长 (s) |
+| `home_joint_positions` | 零位关节角列表 [j1,j2,j3,j4]（rad） |
 
 ---
 

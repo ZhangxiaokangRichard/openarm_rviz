@@ -1,0 +1,36 @@
+<!--
+  sim_with_grasp.launch
+  ======================
+  功能：一键启动完整 RViz 仿真 + 加油枪抓取节点。
+  无需额外终端，所有组件在同一 roslaunch 下运行。
+
+  用法：
+    roslaunch fuel_gun_grasp sim_with_grasp.launch
+
+  注意：
+    - 本 launch 文件依赖 open_manipulator_description 包（RViz 仿真 launch）。
+    - 控制器启动后有 5 秒延迟（launch-prefix sleep），确保服务完全上线后再启动抓取节点。
+-->
+<launch>
+
+  <!-- ====================================================================
+       步骤 1：启动 RViz 仿真（含 URDF 上传、robot_state_publisher、RViz、控制器）
+       ==================================================================== -->
+  <include file="$(find open_manipulator_description)/launch/open_manipulator_rviz_sim.launch"/>
+
+  <!-- ====================================================================
+       步骤 2：延迟启动加油枪抓取节点
+       使用 launch-prefix 延迟 5 秒，等待控制器服务就绪
+       ==================================================================== -->
+  <node name="fuel_gun_grasp_node"
+        pkg="fuel_gun_grasp"
+        type="fuel_gun_grasp_node"
+        output="screen"
+        launch-prefix="bash -c 'sleep 5; $0 $@'">
+
+    <!-- 在节点私有命名空间下加载参数文件 -->
+    <rosparam file="$(find fuel_gun_grasp)/config/params.yaml" command="load"/>
+
+  </node>
+
+</launch>

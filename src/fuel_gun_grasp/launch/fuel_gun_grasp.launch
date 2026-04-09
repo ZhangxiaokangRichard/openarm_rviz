@@ -1,0 +1,27 @@
+<!--
+  fuel_gun_grasp.launch
+  =====================
+  功能：仅启动加油枪抓取节点（调试/单独运行用途）。
+  前置条件：open_manipulator_controller 节点已在另一个终端启动并就绪。
+
+  用法：
+    roslaunch fuel_gun_grasp fuel_gun_grasp.launch
+
+  可选参数：
+    params_file  —— 指定参数文件路径（默认使用包内 config/params.yaml）
+-->
+<launch>
+
+  <!-- 抓取节点（私有命名空间 ~，参数在节点内部通过 nh_ 读取） -->
+  <node name="fuel_gun_grasp_node"
+        pkg="fuel_gun_grasp"
+        type="fuel_gun_grasp_node"
+        output="screen">
+
+    <!-- 在节点私有命名空间下加载参数文件 -->
+    <!-- 所有参数将以 /fuel_gun_grasp_node/<param_name> 形式存储 -->
+    <rosparam file="$(find fuel_gun_grasp)/config/params.yaml" command="load"/>
+
+  </node>
+
+</launch>
