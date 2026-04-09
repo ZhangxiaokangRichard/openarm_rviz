@@ -26,21 +26,22 @@ GraspController::GraspController(ros::NodeHandle& nh)
 {
   // 初始化服务客户端
   // 等待控制器服务上线（最多 10 秒，避免节点启动顺序问题）
-  ROS_INFO("[FuelGunGrasp] 正在连接控制器服务...");
+  ROS_INFO("[FuelGunGrasp]connecting_service...");
 
+  // 服务名使用绝对路径（加 /），避免私有命名空间 ~ 导致路径被解析为 /fuel_gun_grasp_node/...
   client_joint_space_ = nh_.serviceClient<open_manipulator_msgs::SetJointPosition>(
-      "goal_joint_space_path");
+      "/goal_joint_space_path");
   client_task_space_ = nh_.serviceClient<open_manipulator_msgs::SetKinematicsPose>(
-      "goal_task_space_path");
+      "/goal_task_space_path");
   client_task_pos_only_ = nh_.serviceClient<open_manipulator_msgs::SetKinematicsPose>(
-      "goal_task_space_path_position_only");
+      "/goal_task_space_path_position_only");
   client_tool_control_ = nh_.serviceClient<open_manipulator_msgs::SetJointPosition>(
-      "goal_tool_control");
+      "/goal_tool_control");
 
   // 加载 rosparam 参数
   loadParams();
 
-  ROS_INFO("[FuelGunGrasp] 初始化完成，准备执行抓取任务。");
+  ROS_INFO("[FuelGunGrasp] Initialization complete, ready to execute grasping task.");
 }
 
 // ------------------------------------------------------------------------------
@@ -81,18 +82,18 @@ void GraspController::loadParams()
   {
     // 参数未设置时使用默认值：竖直伸展姿态
     home_joint_positions_ = {0.0, -1.0472, 0.3491, 0.6981};
-    ROS_WARN("[FuelGunGrasp] home_joint_positions 未设置，使用默认值。");
+    ROS_WARN("[FuelGunGrasp] home_joint_positions not set, using default values.");
   }
 
   // 打印加载结果
-  ROS_INFO("[FuelGunGrasp] 参数加载完成：");
-  ROS_INFO("  加油枪起点: (%.3f, %.3f, %.3f)",
+  ROS_INFO("[FuelGunGrasp] Parameters loaded:");
+  ROS_INFO("  Gun start pose: (%.3f, %.3f, %.3f)",
            gun_pose_.position.x, gun_pose_.position.y, gun_pose_.position.z);
-  ROS_INFO("  安装终点:   (%.3f, %.3f, %.3f)",
+  ROS_INFO("  Install end pose:   (%.3f, %.3f, %.3f)",
            install_pose_.position.x, install_pose_.position.y, install_pose_.position.z);
-  ROS_INFO("  预备高度偏移: %.3f m，抬升高度: %.3f m",
+  ROS_INFO("  Pre-grasp height offset: %.3f m, Lift height: %.3f m",
            pre_grasp_height_offset_, lift_height_offset_);
-  ROS_INFO("  夹爪：打开=%.3f m，抓取=%.3f m",
+  ROS_INFO("  Gripper: open=%.3f m, grasp=%.3f m",
            gripper_open_value_, gripper_grasp_value_);
 }
 
@@ -130,12 +131,12 @@ bool GraspController::moveJointSpace(const std::vector<double>& positions, doubl
 
   if (!client_joint_space_.call(srv))
   {
-    ROS_ERROR("[FuelGunGrasp] 调用 goal_joint_space_path 服务失败！");
+    ROS_ERROR("[FuelGunGrasp] Failed to call goal_joint_space_path service!");
     return false;
   }
   if (!srv.response.is_planned)
   {
-    ROS_ERROR("[FuelGunGrasp] goal_joint_space_path 规划失败（is_planned=false）！");
+    ROS_ERROR("[FuelGunGrasp] goal_joint_space_path planning failed (is_planned=false)!");
     return false;
   }
   return true;
@@ -155,12 +156,12 @@ bool GraspController::moveTaskSpace(const geometry_msgs::Pose& target_pose, doub
 
   if (!client_task_space_.call(srv))
   {
-    ROS_ERROR("[FuelGunGrasp] 调用 goal_task_space_path 服务失败！");
+    ROS_ERROR("[FuelGunGrasp] Failed to call goal_task_space_path service!");
     return false;
   }
   if (!srv.response.is_planned)
   {
-    ROS_ERROR("[FuelGunGrasp] goal_task_space_path 规划失败（is_planned=false）！");
+    ROS_ERROR("[FuelGunGrasp] goal_task_space_path planning failed (is_planned=false)!");
     return false;
   }
   return true;
@@ -180,12 +181,12 @@ bool GraspController::moveTaskSpacePositionOnly(const geometry_msgs::Pose& targe
 
   if (!client_task_pos_only_.call(srv))
   {
-    ROS_ERROR("[FuelGunGrasp] 调用 goal_task_space_path_position_only 服务失败！");
+    ROS_ERROR("[FuelGunGrasp] Failed to call goal_task_space_path_position_only service!");
     return false;
   }
   if (!srv.response.is_planned)
   {
-    ROS_ERROR("[FuelGunGrasp] goal_task_space_path_position_only 规划失败！");
+    ROS_ERROR("[FuelGunGrasp] goal_task_space_path_position_only planning failed (is_planned=false)!");
     return false;
   }
   return true;
@@ -205,12 +206,12 @@ bool GraspController::controlGripper(double value, double path_time)
 
   if (!client_tool_control_.call(srv))
   {
-    ROS_ERROR("[FuelGunGrasp] 调用 goal_tool_control 服务失败！");
+    ROS_ERROR("[FuelGunGrasp] Failed to call goal_tool_control service!");
     return false;
   }
   if (!srv.response.is_planned)
   {
-    ROS_ERROR("[FuelGunGrasp] goal_tool_control 规划失败（is_planned=false）！");
+    ROS_ERROR("[FuelGunGrasp] goal_tool_control planning failed (is_planned=false)!");
     return false;
   }
   return true;
@@ -228,18 +229,18 @@ void GraspController::advanceState()
     case STATE_INIT:
     {
       // 等待服务上线（阻塞等待最多 10s）
-      ROS_INFO("[FuelGunGrasp] [INIT] 等待控制器服务上线...");
+      ROS_INFO("[FuelGunGrasp] [INIT] Waiting for controller services to be available...");
       bool ok = client_joint_space_.waitForExistence(ros::Duration(10.0)) &&
                 client_task_space_.waitForExistence(ros::Duration(10.0)) &&
                 client_task_pos_only_.waitForExistence(ros::Duration(10.0)) &&
                 client_tool_control_.waitForExistence(ros::Duration(10.0));
       if (!ok)
       {
-        ROS_ERROR("[FuelGunGrasp] 控制器服务等待超时，请确认 open_manipulator_controller 已启动！");
+        ROS_ERROR("[FuelGunGrasp] Controller services timeout, please ensure open_manipulator_controller is running!");
         // 保持 INIT 状态，下次循环重试
         return;
       }
-      ROS_INFO("[FuelGunGrasp] [INIT] 控制器就绪，即将开始执行抓取序列。");
+      ROS_INFO("[FuelGunGrasp] [INIT] Controller services are ready, starting grasp sequence.");
       current_state_ = STATE_HOME;
       break;
     }
@@ -248,13 +249,13 @@ void GraspController::advanceState()
     case STATE_HOME:
     {
       // 运动到安全零位，避免奇异或碰撞
-      ROS_INFO("[FuelGunGrasp] [HOME] 运动至零位...");
+      ROS_INFO("[FuelGunGrasp] [HOME] Moving to home position...");
       if (!moveJointSpace(home_joint_positions_, path_time_home_))
         return;  // 失败则保持当前状态，等待下次重试
 
       // 等待轨迹执行完毕（path_time + 余量）
       ros::Duration(path_time_home_ + 0.5).sleep();
-      ROS_INFO("[FuelGunGrasp] [HOME] 到达零位。");
+      ROS_INFO("[FuelGunGrasp] [HOME] Reached home position.");
       current_state_ = STATE_PRE_GRASP;
       break;
     }
@@ -262,16 +263,18 @@ void GraspController::advanceState()
     // ------------------------------------------------------------------
     case STATE_PRE_GRASP:
     {
-      // 移动到加油枪正上方的预备位（Z + offset），保持目标姿态
-      ROS_INFO("[FuelGunGrasp] [PRE_GRASP] 运动至预备位（加油枪上方）...");
+      // 移动到加油枪正上方的预备位（Z + offset）
+      // 使用 position_only：4-DoF 机械臂无法同时满足任意位置+完整四元数姿态约束，
+      // position_only 仅约束末端位置，由 IK 自由选择合法姿态，避免 IK 无解
+      ROS_INFO("[FuelGunGrasp] [PRE_GRASP] Moving to pre-grasp position (above fuel gun)...");
       geometry_msgs::Pose pre_grasp_pose = gun_pose_;
       pre_grasp_pose.position.z += pre_grasp_height_offset_;  // 抬高到枪的正上方
 
-      if (!moveTaskSpace(pre_grasp_pose, path_time_transit_))
+      if (!moveTaskSpacePositionOnly(pre_grasp_pose, path_time_transit_))
         return;
 
       ros::Duration(path_time_transit_ + 0.5).sleep();
-      ROS_INFO("[FuelGunGrasp] [PRE_GRASP] 到达预备位。");
+      ROS_INFO("[FuelGunGrasp] [PRE_GRASP] Reached pre-grasp position.");
       current_state_ = STATE_OPEN_GRIPPER;
       break;
     }
@@ -280,12 +283,12 @@ void GraspController::advanceState()
     case STATE_OPEN_GRIPPER:
     {
       // 打开夹爪，为抓取做准备
-      ROS_INFO("[FuelGunGrasp] [OPEN_GRIPPER] 打开夹爪 (%.3f m)...", gripper_open_value_);
+      ROS_INFO("[FuelGunGrasp] [OPEN_GRIPPER] Opening gripper (%.3f m)...", gripper_open_value_);
       if (!controlGripper(gripper_open_value_, path_time_gripper_))
         return;
 
       ros::Duration(path_time_gripper_ + wait_after_open_).sleep();
-      ROS_INFO("[FuelGunGrasp] [OPEN_GRIPPER] 夹爪已打开。");
+      ROS_INFO("[FuelGunGrasp] [OPEN_GRIPPER] Gripper opened.");
       current_state_ = STATE_APPROACH;
       break;
     }
@@ -294,12 +297,13 @@ void GraspController::advanceState()
     case STATE_APPROACH:
     {
       // 从预备位竖直下降到加油枪抓取位（仅位置，保持姿态）
-      ROS_INFO("[FuelGunGrasp] [APPROACH] 接近加油枪...");
+      ROS_INFO("[FuelGunGrasp] [APPROACH] Approaching fuel gun...");
       if (!moveTaskSpacePositionOnly(gun_pose_, path_time_approach_))
         return;
 
       ros::Duration(path_time_approach_ + 0.3).sleep();
-      ROS_INFO("[FuelGunGrasp] [APPROACH] 已到达抓取位。");
+
+      ROS_INFO("[FuelGunGrasp] [APPROACH] Reached grasp position.");
       current_state_ = STATE_CLOSE_GRIPPER;
       break;
     }
@@ -308,13 +312,13 @@ void GraspController::advanceState()
     case STATE_CLOSE_GRIPPER:
     {
       // 闭合夹爪，夹住加油枪
-      ROS_INFO("[FuelGunGrasp] [CLOSE_GRIPPER] 闭合夹爪 (%.3f m)...", gripper_grasp_value_);
+      ROS_INFO("[FuelGunGrasp] [CLOSE_GRIPPER] Closing gripper (%.3f m)...", gripper_grasp_value_);
       if (!controlGripper(gripper_grasp_value_, path_time_gripper_))
         return;
 
       // 等待夹爪稳定夹紧
       ros::Duration(path_time_gripper_ + wait_after_grasp_).sleep();
-      ROS_INFO("[FuelGunGrasp] [CLOSE_GRIPPER] 夹爪已闭合，加油枪已抓取。");
+      ROS_INFO("[FuelGunGrasp] [CLOSE_GRIPPER] Gripper closed, fuel gun grasped.");
       current_state_ = STATE_LIFT;
       break;
     }
@@ -323,7 +327,7 @@ void GraspController::advanceState()
     case STATE_LIFT:
     {
       // 带着加油枪竖直抬升，离开放置台
-      ROS_INFO("[FuelGunGrasp] [LIFT] 抬升加油枪 (%.3f m)...", lift_height_offset_);
+      ROS_INFO("[FuelGunGrasp] [LIFT] Lifting fuel gun (%.3f m)...", lift_height_offset_);
       geometry_msgs::Pose lift_pose = gun_pose_;
       lift_pose.position.z += lift_height_offset_;  // 抬升后的高度
 
@@ -331,7 +335,7 @@ void GraspController::advanceState()
         return;
 
       ros::Duration(path_time_lift_ + wait_after_lift_).sleep();
-      ROS_INFO("[FuelGunGrasp] [LIFT] 抬升完成。");
+      ROS_INFO("[FuelGunGrasp] [LIFT] Lift completed.");
       current_state_ = STATE_MOVE_TARGET;
       break;
     }
@@ -340,15 +344,16 @@ void GraspController::advanceState()
     case STATE_MOVE_TARGET:
     {
       // 携带加油枪运动到安装终点正上方的预备位
-      ROS_INFO("[FuelGunGrasp] [MOVE_TARGET] 移动至安装位上方...");
+      // 同样使用 position_only，避免 4-DoF IK 姿态过约束失败
+      ROS_INFO("[FuelGunGrasp] [MOVE_TARGET] Moving to pre-place position (above install point)...");
       geometry_msgs::Pose pre_place_pose = install_pose_;
       pre_place_pose.position.z += pre_place_height_offset_;  // 安装位正上方
 
-      if (!moveTaskSpace(pre_place_pose, path_time_transit_))
+      if (!moveTaskSpacePositionOnly(pre_place_pose, path_time_transit_))
         return;
 
       ros::Duration(path_time_transit_ + 0.5).sleep();
-      ROS_INFO("[FuelGunGrasp] [MOVE_TARGET] 已到达安装位上方。");
+      ROS_INFO("[FuelGunGrasp] [MOVE_TARGET] Reached pre-place position.");
       current_state_ = STATE_PLACE;
       break;
     }
@@ -357,12 +362,12 @@ void GraspController::advanceState()
     case STATE_PLACE:
     {
       // 竖直下降，将加油枪插入/对准安装口
-      ROS_INFO("[FuelGunGrasp] [PLACE] 下降至安装终点...");
+      ROS_INFO("[FuelGunGrasp] [PLACE] Descending to install point...");
       if (!moveTaskSpacePositionOnly(install_pose_, path_time_approach_))
         return;
 
       ros::Duration(path_time_approach_ + wait_after_place_).sleep();
-      ROS_INFO("[FuelGunGrasp] [PLACE] 到达安装终点，加油枪已就位。");
+      ROS_INFO("[FuelGunGrasp] [PLACE] Reached install point, fuel gun in position.");
       current_state_ = STATE_OPEN_RELEASE;
       break;
     }
@@ -371,12 +376,12 @@ void GraspController::advanceState()
     case STATE_OPEN_RELEASE:
     {
       // 松开夹爪，释放加油枪
-      ROS_INFO("[FuelGunGrasp] [OPEN_RELEASE] 释放夹爪...");
+      ROS_INFO("[FuelGunGrasp] [OPEN_RELEASE] Releasing gripper...");
       if (!controlGripper(gripper_open_value_, path_time_gripper_))
         return;
 
       ros::Duration(path_time_gripper_ + wait_after_open_).sleep();
-      ROS_INFO("[FuelGunGrasp] [OPEN_RELEASE] 夹爪已释放，加油枪安装完成！");
+      ROS_INFO("[FuelGunGrasp] [OPEN_RELEASE] Gripper released, fuel gun installed!");
       current_state_ = STATE_DONE;
       break;
     }
@@ -385,14 +390,14 @@ void GraspController::advanceState()
     case STATE_DONE:
     {
       ROS_INFO("[FuelGunGrasp] ====================================");
-      ROS_INFO("[FuelGunGrasp]  加油枪抓取安装任务完成！");
+      ROS_INFO("[FuelGunGrasp]  Fuel gun grasp and installation task completed!");
       ROS_INFO("[FuelGunGrasp] ====================================");
       // 任务已完成，不再推进
       break;
     }
 
     default:
-      ROS_WARN("[FuelGunGrasp] 未知状态 %d，重置到初始状态。", static_cast<int>(current_state_));
+      ROS_WARN("[FuelGunGrasp] Unknown state %d, resetting to initial state.", static_cast<int>(current_state_));
       current_state_ = STATE_INIT;
       break;
   }
@@ -428,7 +433,7 @@ int main(int argc, char** argv)
   ros::NodeHandle nh("~");  // 私有命名空间，参数通过 <param> 或 rosparam 加载
 
   ROS_INFO("======================================");
-  ROS_INFO("  加油枪抓取节点启动");
+  ROS_INFO("Fuel Gun Grasping Node Started");
   ROS_INFO("======================================");
 
   fuel_gun_grasp::GraspController controller(nh);

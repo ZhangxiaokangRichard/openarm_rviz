@@ -824,7 +824,7 @@ bool SolverCustomizedforOMChain::chainCustomInverseKinematics(Manipulator *manip
   //solver parameter
   double lambda = 0.0;
   const double param = 0.002;
-  const int8_t iteration = 10;
+  const int8_t iteration = 50;
 
   const double gamma = 0.5;             //rollback delta
 
@@ -981,6 +981,7 @@ bool SolverCustomizedforOMChain::chainCustomInverseKinematics(Manipulator *manip
     else
     {
       present_angle = _manipulator.getAllActiveJointPosition();
+      set_angle.clear();
       for (int8_t index = 0; index < _manipulator.getDOF(); index++)
         set_angle.push_back(present_angle.at(index) - (gamma * angle_changed(index)));
       _manipulator.setAllActiveJointPosition(set_angle);
