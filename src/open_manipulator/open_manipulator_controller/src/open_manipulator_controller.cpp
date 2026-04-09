@@ -599,14 +599,16 @@ void OpenManipulatorController::publishJointStates()
     msg.effort.push_back(0.0f);
   }
 
-  // In RViz-only sim mode, publish gripper_sub mimic joint (multiplier = -1)
-  // so robot_state_publisher has all non-fixed joints without joint_state_publisher.
+  // In RViz-only sim mode, publish gripper_sub mimic joint.
+  // URDF: gripper_sub has axis="0 -1 0" and mimic multiplier=1 (same value as gripper).
+  // The opposite direction is encoded in the axis, NOT in the multiplier.
+  // Publishing gripper_sub = +gripper (same value) is correct.
   if (use_rviz_)
   {
     for (uint8_t i = 0; i < tool_name.size(); i ++)
     {
       msg.name.push_back(tool_name.at(i) + "_sub");
-      msg.position.push_back(-tool_value.at(i).position);
+      msg.position.push_back(tool_value.at(i).position);
       msg.velocity.push_back(0.0f);
       msg.effort.push_back(0.0f);
     }
