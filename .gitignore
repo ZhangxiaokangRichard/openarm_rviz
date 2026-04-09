@@ -1,0 +1,15 @@
+# catkin build artifacts
+build/
+devel/
+install/
+
+# IDE
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# OS
+.DS_Store

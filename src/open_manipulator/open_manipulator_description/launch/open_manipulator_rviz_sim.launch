@@ -1,0 +1,22 @@
+<launch>
+  <!-- Load URDF into /robot_description -->
+  <include file="$(find open_manipulator_description)/launch/open_manipulator_upload.launch"/>
+
+  <!-- Publish TF from /joint_states (controller provides all joints incl. gripper_sub) -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+  <!-- Open RViz with the pre-configured layout -->
+  <node name="rviz" pkg="rviz" type="rviz"
+        args="-d $(find open_manipulator_description)/rviz/open_manipulator.rviz"/>
+
+  <!-- Controller in RViz-only simulation mode:
+       - using_platform=false  → no Dynamixel hardware
+       - use_rviz=true         → publishes sensor_msgs/JointState instead of Float64 commands -->
+  <node name="open_manipulator_controller" pkg="open_manipulator_controller"
+        type="open_manipulator_controller" output="screen"
+        args="/dev/ttyUSB0 1000000">
+    <param name="using_platform" value="false"/>
+    <param name="use_rviz"       value="true"/>
+    <param name="control_period" value="0.010"/>
+  </node>
+</launch>

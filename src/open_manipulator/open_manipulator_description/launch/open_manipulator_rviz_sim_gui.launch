@@ -1,0 +1,8 @@
+<launch>
+  <!-- RViz + controller (no Gazebo, no hardware) -->
+  <include file="$(find open_manipulator_description)/launch/open_manipulator_rviz_sim.launch"/>
+
+  <!-- Qt5 GUI control panel -->
+  <node name="open_manipulator_control_gui" pkg="open_manipulator_control_gui"
+        type="open_manipulator_control_gui" output="screen"/>
+</launch>
