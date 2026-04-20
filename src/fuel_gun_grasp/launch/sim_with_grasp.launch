@@ -10,6 +10,14 @@
   注意：
     - 本 launch 文件依赖 open_manipulator_description 包（RViz 仿真 launch）。
     - 控制器启动后有 5 秒延迟（launch-prefix sleep），确保服务完全上线后再启动抓取节点。
+
+  场景模型可视化（充电站 + 汽车）：
+    抓取节点启动后会向 /fuel_gun_grasp_node/scene_markers 发布 MarkerArray。
+    在 RViz 中查看步骤：
+      1. 点击 [Add] → [By topic]
+      2. 选择 /fuel_gun_grasp_node/scene_markers → [MarkerArray]
+      3. 点击 [OK]，充电站（蓝灰色）和汽车（红色）即出现在场景中。
+    场景模型位置可通过 config/params.yaml 中的 charging_station / car 参数调整。
 -->
 <launch>
 

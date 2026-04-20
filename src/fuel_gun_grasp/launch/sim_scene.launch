@@ -1,0 +1,64 @@
+<launch>
+  <!--
+    sim_scene.launch — 倒装机械臂 + 充电站/汽车 3D 模型 RViz 预览
+    ───────────────────────────────────────────────────────────────────
+    功能：
+      1. 倒装机械臂（base_z 抬高 + base_roll 翻转 180°）
+      2. 通过 scene_marker_pub 节点发布充电站和汽车 STL Mesh Marker
+
+    启动：
+      roslaunch fuel_gun_grasp sim_scene.launch
+
+    覆盖示例：
+      roslaunch fuel_gun_grasp sim_scene.launch \
+        cs_x:=0.20 cs_y:=0.04 cs_z:=0.00 \
+        car_x:=0.08 car_y:=-0.04 car_z:=0.00
+  -->
+
+  <!-- ── 机械臂基座安装参数 ────────────────────────────────────────── -->
+  <!-- base_z    (m)   : 基座抬高高度；base_roll (rad): Roll 翻转角  -->
+  <arg name="base_z"    default="0.70"/>
+  <arg name="base_roll" default="3.1416"/>   <!-- π ≈ 180°，倒装 -->
+
+  <include file="$(find open_manipulator_description)/launch/open_manipulator_rviz_sim.launch">
+    <arg name="base_z"    value="$(arg base_z)"/>
+    <arg name="base_roll" value="$(arg base_roll)"/>
+  </include>
+
+  <!-- ── 充电站模型坐标与姿态（world 帧，单位 m / rad） ────────────── -->
+  <arg name="cs_x"     default="-0.4"/>
+  <arg name="cs_y"     default="0.45"/>
+  <arg name="cs_z"     default="0.00"/>
+  <arg name="cs_roll"  default="1.5708"/>
+  <arg name="cs_pitch" default="0.0"/>
+  <arg name="cs_yaw"   default="0.0"/>
+
+  <!-- ── 汽车模型坐标与姿态（world 帧，单位 m / rad） ──────────────── -->
+  <arg name="car_x"     default="0.2679"/>
+  <arg name="car_y"     default="0.5503"/>
+  <arg name="car_z"     default="-0.25"/>
+  <arg name="car_roll"  default="1.5708"/>
+  <arg name="car_pitch" default="0.0"/>
+  <arg name="car_yaw"   default="0.0"/>
+
+  <!-- ── STL Mesh Marker 发布节点 ──────────────────────────────────── -->
+  <!-- 话题：/scene_marker_pub/scene_markers（latched MarkerArray）     -->
+  <!-- RViz 显示器：SceneMeshes → 已写入 open_manipulator.rviz          -->
+  <node name="scene_marker_pub" pkg="fuel_gun_grasp"
+        type="scene_marker_pub.py" output="screen">
+    <param name="cs_x"     value="$(arg cs_x)"/>
+    <param name="cs_y"     value="$(arg cs_y)"/>
+    <param name="cs_z"     value="$(arg cs_z)"/>
+    <param name="cs_roll"  value="$(arg cs_roll)"/>
+    <param name="cs_pitch" value="$(arg cs_pitch)"/>
+    <param name="cs_yaw"   value="$(arg cs_yaw)"/>
+
+    <param name="car_x"     value="$(arg car_x)"/>
+    <param name="car_y"     value="$(arg car_y)"/>
+    <param name="car_z"     value="$(arg car_z)"/>
+    <param name="car_roll"  value="$(arg car_roll)"/>
+    <param name="car_pitch" value="$(arg car_pitch)"/>
+    <param name="car_yaw"   value="$(arg car_yaw)"/>
+  </node>
+
+</launch>

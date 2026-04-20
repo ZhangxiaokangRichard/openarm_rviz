@@ -1,6 +1,21 @@
 <launch>
+  <!-- Base mounting pose forwarded to upload.launch → xacro -->
+  <arg name="base_x"     default="0.0"/>
+  <arg name="base_y"     default="0.0"/>
+  <arg name="base_z"     default="0.0"/>
+  <arg name="base_roll"  default="0.0"/>
+  <arg name="base_pitch" default="0.0"/>
+  <arg name="base_yaw"   default="0.0"/>
+
   <!-- Load URDF into /robot_description -->
-  <include file="$(find open_manipulator_description)/launch/open_manipulator_upload.launch"/>
+  <include file="$(find open_manipulator_description)/launch/open_manipulator_upload.launch">
+    <arg name="base_x"     value="$(arg base_x)"/>
+    <arg name="base_y"     value="$(arg base_y)"/>
+    <arg name="base_z"     value="$(arg base_z)"/>
+    <arg name="base_roll"  value="$(arg base_roll)"/>
+    <arg name="base_pitch" value="$(arg base_pitch)"/>
+    <arg name="base_yaw"   value="$(arg base_yaw)"/>
+  </include>
 
   <!-- Publish TF from /joint_states (controller provides all joints incl. gripper_sub) -->
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>

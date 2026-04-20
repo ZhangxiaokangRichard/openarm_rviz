@@ -79,7 +79,7 @@ private:
   // ---------- 状态机 ----------
   GraspState current_state_;   // 当前状态
 
-  // ---------- 位姿参数 ----------
+  // ---------- 位姿参数（抓取目标） ----------
   geometry_msgs::Pose gun_pose_;      // 加油枪起点位姿
   geometry_msgs::Pose install_pose_;  // 安装终点位姿
 

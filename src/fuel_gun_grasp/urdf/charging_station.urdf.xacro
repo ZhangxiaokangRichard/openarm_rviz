@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+<!--
+  charging_station.urdf.xacro
+  ============================
+  充电站模型（参考 URDF，基于简单几何体，无外部 mesh 文件依赖）
+
+  形体组成：
+    - 主机箱   (main body)      0.12 × 0.10 × 0.45 m  蓝灰色
+    - 顶部面板 (top panel)      0.10 × 0.02 × 0.06 m  深蓝色
+    - 加油枪插槽 (nozzle slot)  cylinder r=0.02, h=0.08  橙色
+
+  Xacro 参数（均可在 launch 文件中通过 <arg> 覆盖）：
+    x / y / z  充电站主机箱底部中心在 world 坐标系中的位置 (m)
+
+  与 MarkerArray 可视化的关系：
+    本文件为参考模型，供 Gazebo 仿真或直接调用 robot_state_publisher 加载。
+    fuel_gun_grasp_node 节点已通过 visualization_msgs/MarkerArray 提供等效 RViz 显示，
+    无需单独加载本文件即可在 RViz 中看到充电站模型。
+
+  独立加载示例（需已有 world 坐标系，或配合 static_transform_publisher）：
+    roslaunch fuel_gun_grasp charging_station_standalone.launch  （暂未提供，可自行扩展）
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="charging_station">
+
+  <!-- =============================== 位置参数 =============================== -->
+  <xacro:arg name="x" default="0.20"/>   <!-- 主机箱底部中心 X 坐标 (m) -->
+  <xacro:arg name="y" default="0.04"/>   <!-- 主机箱底部中心 Y 坐标 (m) -->
+  <xacro:arg name="z" default="0.00"/>   <!-- 主机箱底部中心 Z 坐标 (m) -->
+
+  <!-- 世界固定根链接（与机械臂 world 帧同名，独立加载时需确保唯一性） -->
+  <link name="world"/>
+
+  <!-- 主机箱：固定于 world，origin 为底部中心 -->
+  <joint name="charging_station_fixed" type="fixed">
+    <parent link="world"/>
+    <child  link="charging_station_base"/>
+    <origin xyz="$(arg x) $(arg y) $(arg z)" rpy="0 0 0"/>
+  </joint>
+
+  <!-- =============================== 主机箱 =============================== -->
+  <link name="charging_station_base">
+    <visual>
+      <!-- origin 向 Z 偏移半高，使 box 底面与 joint origin 对齐 -->
+      <origin xyz="0 0 0.225" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.12 0.10 0.45"/>
+      </geometry>
+      <material name="station_blue_gray">
+        <color rgba="0.25 0.40 0.65 0.85"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.225" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.12 0.10 0.45"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- =============================== 顶部面板 =============================== -->
+  <joint name="top_panel_joint" type="fixed">
+    <parent link="charging_station_base"/>
+    <child  link="top_panel"/>
+    <origin xyz="0 -0.055 0.435" rpy="-0.3 0 0"/>  <!-- 略向前倾 -->
+  </joint>
+
+  <link name="top_panel">
+    <visual>
+      <origin xyz="0 0 0.03" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.10 0.02 0.06"/>
+      </geometry>
+      <material name="panel_dark_blue">
+        <color rgba="0.05 0.15 0.50 1.00"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- =============================== 加油枪插槽 =============================== -->
+  <!--
+    插槽位于主机箱正面（-y 方向），距地面 0.24 m（与 gun_pose.z 对齐）。
+    圆柱轴默认沿 Z 轴，通过 rpy="1.5708 0 0" 旋转使轴线指向 +Y（朝机械臂方向）。
+  -->
+  <joint name="nozzle_slot_joint" type="fixed">
+    <parent link="charging_station_base"/>
+    <child  link="nozzle_slot"/>
+    <origin xyz="0 -0.05 0.24" rpy="1.5708 0 0"/>
+  </joint>
+
+  <link name="nozzle_slot">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.02" length="0.08"/>
+      </geometry>
+      <material name="nozzle_orange">
+        <color rgba="0.90 0.55 0.10 1.00"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.02" length="0.08"/>
+      </geometry>
+    </collision>
+  </link>
+
+</robot>

@@ -150,6 +150,15 @@ Visualization Manager:
                       {}
       Update Interval: 0
       Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /scene_marker_pub/scene_markers
+      Name: SceneMeshes
+      Namespaces:
+        car: true
+        charging_station: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 225; 225; 225
