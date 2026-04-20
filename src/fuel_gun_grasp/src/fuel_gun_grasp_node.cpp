@@ -38,7 +38,7 @@ GraspController::GraspController(ros::NodeHandle& nh)
   client_tool_control_ = nh_.serviceClient<open_manipulator_msgs::SetJointPosition>(
       "/goal_tool_control");
 
-  // 加载 rosparam 参数
+  // 加载 rosparam 参数（抓取任务参数）
   loadParams();
 
   ROS_INFO("[FuelGunGrasp] Initialization complete, ready to execute grasping task.");

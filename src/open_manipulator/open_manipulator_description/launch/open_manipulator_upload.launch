@@ -1,4 +1,19 @@
 <launch>
+  <!-- Base mounting pose (pass from parent launch to override defaults) -->
+  <arg name="base_x"     default="0.0"/>
+  <arg name="base_y"     default="0.0"/>
+  <arg name="base_z"     default="0.0"/>
+  <arg name="base_roll"  default="0.0"/>
+  <arg name="base_pitch" default="0.0"/>
+  <arg name="base_yaw"   default="0.0"/>
+
   <param name="robot_description"
-         command="$(find xacro)/xacro --inorder '$(find open_manipulator_description)/urdf/open_manipulator_robot.urdf.xacro'"/>
+         command="$(find xacro)/xacro --inorder
+                  '$(find open_manipulator_description)/urdf/open_manipulator_robot.urdf.xacro'
+                  base_x:=$(arg base_x)
+                  base_y:=$(arg base_y)
+                  base_z:=$(arg base_z)
+                  base_roll:=$(arg base_roll)
+                  base_pitch:=$(arg base_pitch)
+                  base_yaw:=$(arg base_yaw)"/>
 </launch>

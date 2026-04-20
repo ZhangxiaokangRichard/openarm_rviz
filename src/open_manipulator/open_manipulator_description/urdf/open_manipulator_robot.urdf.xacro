@@ -14,12 +14,21 @@
   <!-- Import URDF -->
   <xacro:include filename="$(find open_manipulator_description)/urdf/open_manipulator.urdf.xacro" />
 
+  <!-- Base mounting pose parameters (override via launch file args) -->
+  <xacro:arg name="base_x"     default="0.0"/>   <!-- X offset (m) -->
+  <xacro:arg name="base_y"     default="0.0"/>   <!-- Y offset (m) -->
+  <xacro:arg name="base_z"     default="0.0"/>   <!-- Z offset / mounting height (m) -->
+  <xacro:arg name="base_roll"  default="0.0"/>   <!-- Roll  (rad) -->
+  <xacro:arg name="base_pitch" default="0.0"/>   <!-- Pitch (rad) -->
+  <xacro:arg name="base_yaw"   default="0.0"/>   <!-- Yaw   (rad) -->
+
   <!-- World -->
   <link name="world"/>
 
   <!-- World fixed joint-->
   <joint name="world_fixed" type="fixed">
-    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <origin xyz="$(arg base_x) $(arg base_y) $(arg base_z)"
+            rpy="$(arg base_roll) $(arg base_pitch) $(arg base_yaw)"/>
     <parent link="world"/>
     <child link="link1"/>
   </joint>

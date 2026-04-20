@@ -1,0 +1,114 @@
+<?xml version="1.0"?>
+<!--
+  car.urdf.xacro
+  ================
+  汽车模型（参考 URDF，基于简单几何体，无外部 mesh 文件依赖）
+
+  形体组成：
+    - 底盘主体 (car body)   0.55 × 0.24 × 0.12 m  红色
+    - 驾驶室   (cab)        0.20 × 0.22 × 0.10 m  深红色（前端上方）
+    - 加油口   (fuel port)  cylinder r=0.025, h=0.04  黄色（靠机械臂一侧顶面）
+
+  Xacro 参数（均可在 launch 文件中通过 <arg> 覆盖）：
+    x / y / z  底盘底部中心在 world 坐标系中的位置 (m)
+
+  加油口绝对坐标 = (x + fuel_port_offset.x, y + fuel_port_offset.y, z + fuel_port_offset.z)
+                 = (x+0.12, y+0.12, z+0.12)
+  默认值：(0.08+0.12, -0.04+0.12, 0.00+0.12) = (0.20, 0.08, 0.12)  ← 与 install_pose 对齐
+
+  与 MarkerArray 可视化的关系：
+    本文件为参考模型，供 Gazebo 仿真等高级用途。
+    fuel_gun_grasp_node 已通过 visualization_msgs/MarkerArray 提供等效 RViz 可视化，
+    无需单独加载本文件即可在 RViz 中看到汽车模型。
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="car">
+
+  <!-- =============================== 位置参数 =============================== -->
+  <xacro:arg name="x" default="0.08"/>   <!-- 底盘底部中心 X 坐标 (m) -->
+  <xacro:arg name="y" default="-0.04"/>  <!-- 底盘底部中心 Y 坐标 (m) -->
+  <xacro:arg name="z" default="0.00"/>   <!-- 底盘底部中心 Z 坐标 (m) -->
+
+  <!-- 世界固定根链接 -->
+  <link name="world"/>
+
+  <!-- 底盘：固定于 world，origin 为底盘底部中心 -->
+  <joint name="car_fixed" type="fixed">
+    <parent link="world"/>
+    <child  link="car_body"/>
+    <origin xyz="$(arg x) $(arg y) $(arg z)" rpy="0 0 0"/>
+  </joint>
+
+  <!-- =============================== 底盘主体 =============================== -->
+  <link name="car_body">
+    <visual>
+      <!-- origin 向 Z 偏移半高，使 box 底面与 joint origin 对齐 -->
+      <origin xyz="0 0 0.06" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.55 0.24 0.12"/>
+      </geometry>
+      <material name="car_red">
+        <color rgba="0.75 0.15 0.10 0.85"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.06" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.55 0.24 0.12"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- =============================== 驾驶室 =============================== -->
+  <!--
+    驾驶室位于车身前端（-x 方向）顶部，高于底盘顶面。
+    joint origin 相对底盘底部中心偏移：x=-0.175（最前端偏内 0.10m），z=0.12（底盘顶面）
+  -->
+  <joint name="cab_joint" type="fixed">
+    <parent link="car_body"/>
+    <child  link="car_cab"/>
+    <origin xyz="-0.165 0 0.12" rpy="0 0 0"/>
+  </joint>
+
+  <link name="car_cab">
+    <visual>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.20 0.22 0.10"/>
+      </geometry>
+      <material name="cab_dark_red">
+        <color rgba="0.50 0.08 0.05 0.90"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- =============================== 加油口 =============================== -->
+  <!--
+    加油口位于底盘前部靠机械臂一侧（+y），顶面（z=0.12）处。
+    偏移：(0.12, 0.12, 0.12)，使绝对位置与 install_pose 对齐。
+    圆柱轴默认沿 Z，无需旋转（加油口朝上）。
+  -->
+  <joint name="fuel_port_joint" type="fixed">
+    <parent link="car_body"/>
+    <child  link="fuel_port"/>
+    <origin xyz="0.12 0.12 0.12" rpy="0 0 0"/>
+  </joint>
+
+  <link name="fuel_port">
+    <visual>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.025" length="0.04"/>
+      </geometry>
+      <material name="port_yellow">
+        <color rgba="0.95 0.80 0.05 1.00"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.025" length="0.04"/>
+      </geometry>
+    </collision>
+  </link>
+
+</robot>

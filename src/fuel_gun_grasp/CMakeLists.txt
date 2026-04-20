@@ -34,6 +34,12 @@ install(TARGETS fuel_gun_grasp_node
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
-install(DIRECTORY config launch
+install(DIRECTORY config launch urdf meshes
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
+## Python 脚本安装（scene_marker_pub.py 等）
+catkin_install_python(PROGRAMS
+  scripts/scene_marker_pub.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
