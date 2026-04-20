@@ -41,5 +41,6 @@ install(DIRECTORY config launch urdf meshes
 ## Python 脚本安装（scene_marker_pub.py 等）
 catkin_install_python(PROGRAMS
   scripts/scene_marker_pub.py
+  scripts/workspace_cloud.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
